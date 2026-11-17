@@ -47,3 +47,13 @@ def test_disable_moves_configs_aside_and_is_reversible(monkeypatch, tmp_path):
     assert not (conf / "sonar-game-eq.conf").exists()
     assert (conf / "unrelated.conf").read_text() == "keep"
     assert (tmp_path / "filter-chain.conf.d.channels-off" / "sonar-game-eq.conf").exists()
+
+
+def test_channel_only_dep_prompts_are_dropped_when_off(monkeypatch):
+    from arctis_sound_manager import system_deps_checker as sdc
+    _settings_with(monkeypatch, False)
+    names = {r.check.name for r in sdc.run_all_checks()}
+    assert not names & sdc._CHANNEL_ONLY_CHECKS
+    _settings_with(monkeypatch, True)
+    names = {r.check.name for r in sdc.run_all_checks()}
+    assert sdc._CHANNEL_ONLY_CHECKS <= names

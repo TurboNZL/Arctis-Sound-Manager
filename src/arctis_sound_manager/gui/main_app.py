@@ -441,6 +441,7 @@ class QMainApp(QBaseDesktopApp):
         # current page to move off Clips when the feature is off, and the
         # sidebar is built long before there is a stack to ask.
         self.apply_clips_visibility()
+        self._hide_equalizer_tab_if_channels_off()
 
         return window
 
@@ -452,6 +453,20 @@ class QMainApp(QBaseDesktopApp):
         active_idx = PAGE_SETTINGS if index == PAGE_THEME_EDITOR else index
         for i, btn in enumerate(self._sidebar_buttons):
             btn.set_active(i == active_idx)
+
+    def _hide_equalizer_tab_if_channels_off(self) -> None:
+        """Fork: the Equalizer tab edits the per-channel Sonar EQ, which only
+        exists while the channels are on. The button is hidden, not removed, so
+        sidebar and stack indices still match."""
+        try:
+            from arctis_sound_manager.settings import GeneralSettings
+            if bool(GeneralSettings.read_from_file().channels_enabled):
+                return
+        except Exception:  # noqa: BLE001
+            return
+        buttons = getattr(self, "_sidebar_buttons", None) or []
+        if PAGE_EQUALIZER < len(buttons):
+            buttons[PAGE_EQUALIZER].setVisible(False)
 
     def apply_clips_visibility(self) -> None:
         """Make sure the Video tab is present, and showing the right face.

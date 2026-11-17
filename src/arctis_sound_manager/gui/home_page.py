@@ -1924,6 +1924,7 @@ class HomePage(QWidget):
 
         root.addWidget(cards_outer, stretch=1)
         root.addWidget(chatmix_bar_outer)
+        self._chatmix_bar_outer = chatmix_bar_outer
 
         # ── Other applications ────────────────────────────────────────────────
         # Applications that are playing but sit on no ASM channel are invisible
@@ -1980,6 +1981,7 @@ class HomePage(QWidget):
         self._unassigned_wrap.setVisible(False)
         self._style_unassigned()
         root.addWidget(self._unassigned_wrap)
+        self._hide_channel_widgets_if_off()
 
         # ── Help button ───────────────────────────────────────────────────────
         help_row = QWidget()
@@ -3278,6 +3280,30 @@ class HomePage(QWidget):
     _STREAM_CARDS = (("game", "_game_card"), ("chat", "_chat_card"),
                      ("media", "_media_card"), ("aux", "_aux_card"),
                      ("mic", "_mic_card"))
+
+    def _hide_channel_widgets_if_off(self) -> None:
+        """Fork: with the Sonar channels off there are no channel sinks, so the
+        Game/Chat/Media/Aux/Output cards, the ChatMix bar, the app tray and the
+        profile/Streamer bar have nothing to act on. Leave the status header and
+        the Mic and Master cards.
+
+        The widgets are re-parented into a hidden holder rather than deleted or
+        merely hidden: the rest of this page keeps updating them, and a child of
+        a hidden parent stays off screen even when later code calls show().
+        """
+        try:
+            from arctis_sound_manager.settings import GeneralSettings
+            if bool(GeneralSettings.read_from_file().channels_enabled):
+                return
+        except Exception:  # noqa: BLE001 — unreadable settings: show everything
+            return
+        holder = QWidget(self)
+        holder.hide()
+        self._channel_holder = holder
+        for w in (self._game_card, self._chat_card, self._media_card,
+                  self._aux_card, self._ext_card, self._chatmix_bar_outer,
+                  self._unassigned_wrap, self.profile_bar):
+            w.setParent(holder)
 
     def _init_stream_controls(self) -> None:
         """Wire the Stream control of the five cards that feed the stream mix."""

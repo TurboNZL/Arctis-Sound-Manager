@@ -1544,6 +1544,20 @@ def clip_dep_checks() -> list[DepCheck]:
     ]
 
 
+_CHANNEL_ONLY_CHECKS = frozenset({
+    "LADSPA SWH plugins (plate_1423 / sc4m_1916 / gate_1410)",
+    "rnnoise LADSPA plugin",
+})
+
+
+def _channels_enabled() -> bool:
+    try:
+        from arctis_sound_manager.settings import GeneralSettings
+        return bool(GeneralSettings.read_from_file().channels_enabled)
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def run_all_checks() -> list[CheckResult]:
     """Run every dep check and return one CheckResult per check.
 
@@ -1559,6 +1573,10 @@ def run_all_checks() -> list[CheckResult]:
     checks = _build_checks()
     if clips_enabled():
         checks += clip_dep_checks()
+    if not _channels_enabled():
+        # Fork: with the Sonar channels off nothing loads the LADSPA plugins
+        # (EQ, spatial audio, mic chain), so their absence is not a fault.
+        checks = [c for c in checks if c.name not in _CHANNEL_ONLY_CHECKS]
 
     results: list[CheckResult] = []
     for check in checks:
