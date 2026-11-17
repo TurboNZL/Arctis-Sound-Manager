@@ -148,8 +148,3 @@ jobs:
             --notes "Commit $SHORT. $HOW
 
           - **Debian / Ubuntu:** download the \`-linux-all.deb\`, then \`sudo apt install ./arctis-sound-manager-$VERSION-linux-all.deb\`."
-      - name: Keep only the five newest releases
-        run: |
-          gh release list --repo "$GITHUB_REPOSITORY" --limit 100 --json tagName,createdAt \
-            --jq 'map(select(.tagName | test("^v20[0-9][0-9]\\."))) | sort_by(.createdAt) | reverse | .[5:] | .[].tagName' \
-            | xargs -r -I{} gh release delete {} --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
