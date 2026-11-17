@@ -364,6 +364,12 @@ class GeneralSettings(JsonSerializable):
     # output list, and one more filter stage running for nothing.
     aux_enabled: bool = False
 
+    # Fork: the Sonar virtual channels (Arctis_Game / Chat / Media / Aux, the
+    # filter-chain EQ and spatial stages behind them) are opt-in. When False
+    # the daemon creates no virtual sinks and audio goes straight to the
+    # headset, while the WirePlumber crackle fixes (pw_quirks) still apply.
+    channels_enabled: bool = False
+
     # Streamer mode: a second, independent mix of Game/Chat/Media/Aux and the
     # processed Mic, published as a virtual Audio/Source for OBS (see
     # stream_mix.py). Off by default: it adds a 27-input filter-chain that

@@ -543,6 +543,45 @@ def _aux_enabled() -> bool:
         return False
 
 
+def channels_enabled() -> bool:
+    """Whether the Sonar virtual channels are switched on (fork setting).
+
+    Read per call, like :func:`_aux_enabled`. When off, no virtual sink, EQ or
+    spatial filter-chain config is created or repaired and audio goes straight
+    to the headset; the WirePlumber crackle quirks (pw_quirks) are unaffected.
+    """
+    try:
+        from arctis_sound_manager.settings import GeneralSettings
+        return bool(GeneralSettings.read_from_file().channels_enabled)
+    except Exception:  # noqa: BLE001
+        return False
+
+
+def disable_channel_configs() -> list[str]:
+    """Move every ASM-generated filter-chain config out of filter-chain.conf.d/.
+
+    Reversible: files go to ``filter-chain.conf.d.channels-off`` (a sibling the
+    filter-chain loader does not scan, distinct from the crash safe-mode dir).
+    Returns the names moved. The caller restarts filter-chain.
+    """
+    off_dir = _CONF_DIR.parent / "filter-chain.conf.d.channels-off"
+    moved: list[str] = []
+    try:
+        off_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        _log.warning("channels-off: cannot create %s: %s", off_dir, exc)
+        return moved
+    for name in _ASM_CONF_NAMES:
+        src = _CONF_DIR / name
+        if src.exists():
+            try:
+                src.replace(off_dir / name)
+                moved.append(name)
+            except OSError as exc:
+                _log.warning("channels-off: could not move %s: %s", name, exc)
+    return moved
+
+
 def _streamer_mode_enabled() -> bool:
     """Whether Streamer mode (the independent OBS mix) is switched on.
 
@@ -1218,6 +1257,12 @@ def clear_safe_mode_and_restore() -> None:
 
 
 def maybe_recover_from_safe_mode() -> bool:
+    if not channels_enabled():
+        return False
+    return _maybe_recover_from_safe_mode()
+
+
+def _maybe_recover_from_safe_mode() -> bool:
     """Auto-clear safe mode when the environment changed since it was armed.
 
     Safe mode (issue #88) latches on a filter-chain SEGV crash-loop and then
@@ -1416,6 +1461,12 @@ def _restart_filter_chain() -> None:
 
 
 def ensure_filter_chain_healthy() -> bool:
+    if not channels_enabled():
+        return True  # nothing of ours is loaded, nothing to heal
+    return _ensure_filter_chain_healthy()
+
+
+def _ensure_filter_chain_healthy() -> bool:
     """Detect a crash-looping filter-chain at boot or device-attach time and arm
     the safe-mode fallback if needed (Correctif 1, issue #88; start-then-poll
     behaviour adapted from PR #104 for issue #88's Fedora reports).
@@ -3291,6 +3342,12 @@ def _purge_duplicate_pipewire_confs(bad_dir: Path, log) -> list[str]:
 
 
 def check_and_fix_stale_configs() -> tuple[bool, bool]:
+    if not channels_enabled():
+        return False, False
+    return _check_and_fix_stale_configs()
+
+
+def _check_and_fix_stale_configs() -> tuple[bool, bool]:
     """Detect and fix stale Sonar configs.
 
     Checks for:
@@ -3809,6 +3866,12 @@ def _live_apply_hesuvi(channel: str, old: str, new: str) -> bool:
 
 
 def apply_spatial_audio_change() -> bool:
+    if not channels_enabled():
+        return False
+    return _apply_spatial_audio_change()
+
+
+def _apply_spatial_audio_change() -> bool:
     """Make an Immersion/Distance slider move take effect on the live pipeline (#169).
 
     Regenerates the per-channel HeSuVi confs from the saved JSON and, only when
@@ -3841,6 +3904,12 @@ def apply_spatial_audio_change() -> bool:
 
 
 def ensure_sonar_eq_configs() -> bool:
+    if not channels_enabled():
+        return False
+    return _ensure_sonar_eq_configs()
+
+
+def _ensure_sonar_eq_configs() -> bool:
     """Generate or fix bypass EQ configs for game and chat channels.
 
     Validates that ``effect_input.sonar-game-eq`` and ``effect_input.sonar-chat-eq``

@@ -604,6 +604,24 @@ class ArctisManagerDbusSettingsService(ServiceInterface):
             ).start()
             return True
 
+        # Special case: Sonar channels on/off (fork). Same shape as aux_enabled:
+        # not a ConfigSetting, and the toggle blocks on service restarts so it
+        # runs off the D-Bus loop.
+        if setting == 'channels_enabled':
+            gs = self.core_engine.general_settings
+            if not isinstance(value, bool):
+                self.logger.error('SetSetting channels_enabled: expected bool, got %r', value)
+                return False
+            gs.channels_enabled = value
+            gs.write_to_file()
+            self.logger.info("channels_enabled set to %r — applying", value)
+            threading.Thread(
+                target=self.core_engine.apply_channels_mode,
+                name='asm-channels-toggle',
+                daemon=True,
+            ).start()
+            return True
+
         # Special case: Streamer mode (no ConfigSetting entry, same reasoning
         # as aux_enabled above). The toggle has to create or remove the
         # stream-mix conf and restart the filter-chain, which blocks, so it

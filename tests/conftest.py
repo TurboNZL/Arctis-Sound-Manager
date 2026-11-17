@@ -251,3 +251,22 @@ def _isolated_routing_overrides_suitewide(tmp_path_factory, monkeypatch):
         raising=False,
     )
     yield
+
+
+@pytest.fixture(autouse=True)
+def _channels_on_by_default(request, monkeypatch):
+    """The fork ships with the Sonar channels off, but nearly every existing
+    test exercises the channel code, so run those with them on. Tests that
+    check the disabled path opt out with ``@pytest.mark.channels_off``."""
+    if request.node.get_closest_marker("channels_off"):
+        return
+    try:
+        from arctis_sound_manager import sonar_to_pipewire
+    except Exception:  # noqa: BLE001 — optional deps missing in this env
+        return
+    monkeypatch.setattr(sonar_to_pipewire, "channels_enabled", lambda: True)
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "channels_off: run with channels_enabled=False (fork default)")
