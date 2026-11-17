@@ -470,7 +470,9 @@ class QMainApp(QBaseDesktopApp):
         """
         buttons = getattr(self, "_sidebar_buttons", None) or []
         if PAGE_CLIPS < len(buttons):
-            buttons[PAGE_CLIPS].setVisible(True)
+            # Fork: video clips are removed, so the tab stays hidden. The
+            # button is kept (not deleted) so sidebar/stack indices still match.
+            buttons[PAGE_CLIPS].setVisible(False)
 
         # Clips can be switched on or off from the tab itself while the window
         # is open, and the tab has to follow without a restart.

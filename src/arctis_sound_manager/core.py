@@ -732,6 +732,14 @@ class CoreEngine:
         ``device_state`` — the loopbacks will be created when the device is
         detected and ``configure_virtual_sinks`` is called.
         """
+        from arctis_sound_manager.sonar_to_pipewire import channels_enabled
+        if not channels_enabled():
+            self.logger.info("setup_loopbacks: channels disabled, not creating virtual sinks")
+            try:
+                self.loopback_manager.stop_all()
+            except Exception as exc:  # noqa: BLE001
+                self.logger.debug("setup_loopbacks: stop_all failed: %r", exc)
+            return
         if not device_state.is_device_set():
             self.logger.info("setup_loopbacks: no device registered, skipping loopback creation")
             return
@@ -1185,6 +1193,33 @@ class CoreEngine:
         except Exception:  # noqa: BLE001
             return False
 
+    def apply_channels_mode(self) -> None:
+        """Apply the ``channels_enabled`` toggle to the running system.
+
+        Off: stop the loopbacks, move the ASM filter-chain configs aside and
+        restart filter-chain once, so the Arctis_* sinks disappear and audio
+        goes straight to the headset. On: rebuild everything through the
+        normal configure path (which regenerates the configs).
+        """
+        from arctis_sound_manager.sonar_to_pipewire import (
+            channels_enabled, disable_channel_configs)
+        from arctis_sound_manager import service_control as sc
+        if channels_enabled():
+            self.logger.info("channels_enabled on — rebuilding virtual sinks")
+            self.configure_virtual_sinks()
+            return
+        self.logger.info("channels_enabled off — removing virtual sinks")
+        try:
+            self.loopback_manager.stop_all()
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("apply_channels_mode: stop_all failed: %r", exc)
+        moved = disable_channel_configs()
+        self.logger.info("apply_channels_mode: moved %d filter-chain config(s)", len(moved))
+        try:
+            sc.restart("filter-chain", timeout=15)
+        except Exception as exc:  # noqa: BLE001
+            self.logger.warning("apply_channels_mode: filter-chain restart failed: %r", exc)
+
     def apply_streamer_mode(self) -> None:
         """Make the live graph match the ``streamer_mode`` setting.
 
@@ -1440,6 +1475,10 @@ class CoreEngine:
                     break
                 if not device_state.is_device_set():
                     # No device — no loopbacks to watch.
+                    continue
+                from arctis_sound_manager.sonar_to_pipewire import channels_enabled
+                if not channels_enabled():
+                    # Channels are off: no loopbacks or EQ links to enforce.
                     continue
 
                 now = time.monotonic()
@@ -4006,6 +4045,9 @@ class CoreEngine:
         is not there. That is why redirect_audio_on_disconnect exists to hand
         the default back when it goes away.
         """
+        from arctis_sound_manager.sonar_to_pipewire import channels_enabled
+        if not channels_enabled():
+            return  # no channel sinks exist to redirect to
         if not self.general_settings.redirect_audio_on_connect or not self.is_device_online():
             return
 

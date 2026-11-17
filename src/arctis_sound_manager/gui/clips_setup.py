@@ -151,7 +151,9 @@ def clips_active() -> bool:
     making Uninstall look broken. The flag alone would show the recorder on a
     machine whose packages were removed from underneath it.
     """
-    return clips_enabled() and runtime_ready()
+    # Fork: video clips are removed. The recorder is never built, whatever
+    # the saved flag says; the Video tab is hidden in main_app.
+    return False
 
 
 def set_enabled(value: bool) -> None:
