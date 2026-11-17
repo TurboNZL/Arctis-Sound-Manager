@@ -358,7 +358,11 @@ def test_hrir_present_returns_false_for_empty_file(tmp_path, monkeypatch):
 # ── run_all_checks + failing ──────────────────────────────────────────────────
 
 
-def test_run_all_checks_returns_one_result_per_check():
+def test_run_all_checks_returns_one_result_per_check(monkeypatch):
+    # Channels on: with them off (the fork default) the channel-only checks are
+    # deliberately dropped, see tests/test_channels_disabled.py.
+    from arctis_sound_manager import system_deps_checker as sdc
+    monkeypatch.setattr(sdc, "_channels_enabled", lambda: True)
     results = run_all_checks()
     assert len(results) == len(_build_checks())
     for r in results:

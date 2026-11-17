@@ -357,7 +357,13 @@ def test_the_main_window_builds_with_clips_off():
         # shown here, and isVisible() is False for every widget under an unshown
         # window — it would read the same whether the entry was hidden on
         # purpose or not, which is the whole question.
-        assert main._sidebar_buttons[PAGE_CLIPS].isHidden() is False
+        #
+        # Fork: video clips are removed, so the Video tab is hidden for good.
+        # The button is kept so sidebar and stack indices still match. The
+        # Equalizer tab (per-channel EQ) is hidden too while channels are off,
+        # which is the default.
+        assert main._sidebar_buttons[PAGE_CLIPS].isHidden() is True
+        assert main._sidebar_buttons[1].isHidden() is True
         # The link a settings page walks to reach the sidebar.
         assert getattr(main.main_window, "main_app", None) is main
     finally:
